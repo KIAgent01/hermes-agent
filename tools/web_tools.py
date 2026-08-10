@@ -721,6 +721,39 @@ def web_search_tool(query: str, limit: int = 5) -> str:
             )
             response_data = provider.search(query, limit)
 
+        # Runtime fallback (Elias setup): if the configured search backend
+        # failed (quota exhaustion, 5xx, etc.) and web.search_fallback_backend
+        # names a registered search provider, retry once with it. This closes
+        # the gap where Hermes only falls back on missing/capability-mismatched
+        # providers, not on `{success: false}` responses.
+        if (
+            isinstance(response_data, dict)
+            and not response_data.get("success", False)
+            and response_data.get("error") != "Interrupted"
+        ):
+            fb_backend = (
+                (_load_web_config().get("search_fallback_backend") or "")
+                .lower()
+                .strip()
+            )
+            if fb_backend and fb_backend != backend:
+                try:
+                    fb_provider = _wsp_get_provider(fb_backend)
+                except Exception:  # noqa: BLE001 — registry optional
+                    fb_provider = None
+                if fb_provider is not None and fb_provider.supports_search():
+                    logger.info(
+                        "Web search primary '%s' failed; falling back to '%s'",
+                        backend, fb_backend,
+                    )
+                    fb_response = fb_provider.search(query, limit)
+                    if (
+                        isinstance(fb_response, dict)
+                        and fb_response.get("success", False)
+                    ):
+                        fb_response["fallback_from"] = backend
+                        response_data = fb_response
+
         debug_call_data["results_count"] = len(response_data.get("data", {}).get("web", []))
         result_json = json.dumps(response_data, indent=2, ensure_ascii=False)
         debug_call_data["final_response_size"] = len(result_json)
