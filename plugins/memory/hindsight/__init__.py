@@ -553,8 +553,7 @@ def _build_embedded_profile_env(config: dict[str, Any], *, llm_api_key: str | No
         env_values["HINDSIGHT_EMBED_DAEMON_IDLE_TIMEOUT"] = str(
             _parse_int_setting(idle_timeout, _DEFAULT_IDLE_TIMEOUT)
         )
-
-    # Local carried patch: preserve the extended Hindsight daemon config from
+        # Local carried patch: preserve the extended Hindsight daemon config from
     # the Hermes protected env. Upstream materializes only LLM-only keys, which
     # silently resets embeddings/reranker/multi-provider-failover settings on
     # every Hermes start. Inherit all HINDSIGHT_API_* vars plus CODEX_HOME
@@ -562,7 +561,7 @@ def _build_embedded_profile_env(config: dict[str, Any], *, llm_api_key: str | No
     for key, value in os.environ.items():
         if (key.startswith("HINDSIGHT_API_") or key == "CODEX_HOME") and key not in env_values:
             env_values[key] = value
-    return env_values
+return env_values
 
 
 def _embedded_profile_env_path(config: dict[str, Any]):
